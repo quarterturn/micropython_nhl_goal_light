@@ -55,8 +55,8 @@ def fetch_score(team_id):
         response.close()
         return score
     except:
-        print("Error encountered, returning 0 for score")
-        return 0
+        print("Error encountered, returning -1 for score")
+        return -1
 
 
 def check_season():
@@ -100,18 +100,18 @@ def check_game_end(team_id):
     # Set URL depending on team selected
     url = '{0}schedule?teamId={1}'.format(NHL_API_URL, team_id)
     # Avoid request errors
-    #try:
-    game_status = requests.get(url)
-    game_status_data = game_status.json()
-    data = int(game_status_data['dates'][0]['games'][0]['status']['statusCode'])
-    if data == 7:
-        game_status.close()
-        return True
-    else:
-        game_status.close()
-        return False
-    #except:
+    try:
+        game_status = requests.get(url)
+        game_status_data = game_status.json()
+        data = int(game_status_data['dates'][0]['games'][0]['status']['statusCode'])
+        if data == 7:
+            game_status.close()
+            return True
+        else:
+            game_status.close()
+            return False
+    except:
         # Return False to allow for another pass for test
-#        print("Error encountered, returning False for check_game_end")
-#        game_status.close()
-#        return False
+        print("Error encountered, returning False for check_game_end")
+        # game_status.close()
+        return False

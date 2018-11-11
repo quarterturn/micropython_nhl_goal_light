@@ -130,7 +130,7 @@ if __name__ == "__main__":
     # ESP 8266 Huzzah
     adc = machine.ADC(0)
 
-    first_score_check = 1
+    first_score_check = True
 
     # machine.WDT().deinit()
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
             #print('ALLOCATED: ', gc.mem_alloc())
             #print('FREE: ', gc.mem_free())
 
-            print(".", end="")
+            # print(".", end="")
 
             # read the delay adjustment every loop
             # so it can be tweaked during a game
@@ -172,6 +172,13 @@ if __name__ == "__main__":
                         # print("Game now")
                         # Check score online and save score
                         new_score = nhl.fetch_score(team_id)
+                        
+                        # if something went wrong getting the score
+                        # set the score back to what it was
+                        if new_score == -1:
+                            new_score = old_score
+ 
+                        print("Score: ", new_score)
 
                         if new_score == 0:
                             light.game_now()
@@ -180,15 +187,18 @@ if __name__ == "__main__":
 
                         # if the ESP8266 has rebooted
                         # prevent it from lighting the goal light
-                        if first_score_check:
+                        if first_score_check == True :
                             old_score = new_score
-                            first_score_check = 0
+                            first_score_check = False
 
                         # If score change...
                         if new_score > old_score:
                             # save new score
                             # print("GOAL!")
                             # activate_goal_light()
+                            # wait delay time
+                            print("Score delay: ", delay)
+                            time.sleep(delay)
                             light.activate_goal_light()
                             old_score = new_score
 
