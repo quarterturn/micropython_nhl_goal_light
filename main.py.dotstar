@@ -7,8 +7,12 @@ and RAM.
 
 Uses wifimanager to provide a way for the user to configure the wireless. 
 
-This version uses a Sonoff Basic to control a lamp using the relay.
+This version uses a dotstar LED stick to light up for a goal and also show the team
+score.
 
+TO DO: provide a web interface for setting the team and delay. Right now I am using a
+five-position DIP switch and a 10K pot fed with a 22K/10K voltage divider and wiper to
+the ADC input.
 """
 
 import wifimgr
@@ -18,6 +22,8 @@ import machine
 import urequests as requests
 from lib import nhl
 from lib import light
+#import gc
+#import micropython
 
 def sleep(sleep_period):
     """ Function to sleep if not in season or no game.
@@ -28,58 +34,68 @@ def sleep(sleep_period):
 
 
 def setup_nhl():
+    """ reads the dip switch inputs to get the team index """
+    """ looks up the actual team ID using a tuple """
 
-    team_id = 12
-    delay = get_nv_data("delay.txt")
+    index = 0
+    team_id = ""
+    delay = 0
 
+    # setup pins
+    bit1 = machine.Pin(4, machine.Pin.IN, machine.Pin.PULL_UP)
+    bit2 = machine.Pin(5, machine.Pin.IN, machine.Pin.PULL_UP)
+    bit3 = machine.Pin(12, machine.Pin.IN, machine.Pin.PULL_UP)
+    bit4 = machine.Pin(13, machine.Pin.IN, machine.Pin.PULL_UP)
+    bit5 = machine.Pin(14, machine.Pin.IN, machine.Pin.PULL_UP)
+
+    # ADC
+    # ESP32 version
+    #adc = machine.ADC(machine.Pin(34))
+    # ESP8266 Huzzah version
+    adc = machine.ADC(0)
+
+    # add up the binary value
+    # remember it is active-low
+    if bit1.value() == 0:
+        index = index + 1
+    if bit2.value() == 0:
+        index = index + 2
+    if bit3.value() == 0:
+        index = index + 4
+    if bit4.value() == 0:
+        index = index + 8
+    if bit5.value() == 0:
+        index = index + 16
+
+    # convert the switch setting to the team
+    # up to team 10 it is a 1:1 mapping
+    if index < 11:
+        team_id = index
+    # there is no team 11, so add one
+    elif index > 10 and index < 28:
+        team_id = index + 1
+    # fit the teams in the 50's by adding 23
+    else:
+        team_id = index + 23
+
+    # prevent impossible settings
+    if team_id > 54:
+        team_id = 54
+    if team_id < 1:
+        team_id = 1
+        
+        
+             
+    # read delay setting
+    # divide by 8 gives a max of about 2 minutes in seconds
+    # this ought to be enough
+    # and will reduce the effect of noise in the reading
+    delay = adc.read() / 8
+
+    # print("team_id: {0}, delay seconds: {1}".format(team_id, delay))
+    
     return (team_id, delay)
 
-def get_nv_data(name):
-    try:
-        with open(name) as f:
-            v = int(f.read())
-    except OSError:
-        v = 0
-        try:
-            with open(name, "w") as f:
-               f.write(str(v))
-        except OSError:
-            print("Can't create file %s" % name)
-
-    except ValueError:
-        print("invalid data in file %s" % name)
-        v = 0
-
-    return v
-
-def set_nv_data(name, value):
-    try:
-        with open(name, "w") as f:
-            f.write(str(value))
-    except OSError:
-        print("Can't write to file %s" % name)
-
-def callback(tim):
-    state = machine.disable_irq()
-    global delay
-    global led
-    led.value(0)
-    time.sleep(0.01)
-    if delay < 100:
-	delay = delay + 10
-        set_nv_data("delay.txt", delay)
-    else:
-        delay = 0
-        set_nv_data("delay.txt", delay)
-        led.value(1)
-        time.sleep(0.2)
-        led.value(0)
-        time.sleep(0.2)
-        led.value(1)
-
-    print("delay: ", delay)
-    led.value(1)
-    machine.enable_irq(state)
 
 if __name__ == "__main__":
 
@@ -88,9 +104,7 @@ if __name__ == "__main__":
     if wlan is None:
         # print("Could not initialize the network connection.")
         while True:
-            relay.value(1)
             time.sleep(1)
-            relay.value(0)
             pass  # you shall not pass :D
 
     while not wlan.isconnected():
@@ -102,24 +116,23 @@ if __name__ == "__main__":
 
     ntptime.settime()
     
-    # setup pins
-    # Sonoff LED seems to have a pullup
-    led = machine.Pin(13, machine.Pin.OUT)
-    relay = machine.Pin(12, machine.Pin.OUT)
-    button = machine.Pin(0, machine.Pin.IN, machine.Pin.PULL_UP)
-    button.irq(trigger=machine.Pin.IRQ_FALLING, handler=callback)
-
     old_score = 0
     new_score = 0
     gameday = False
     season = False
-    delay = 0
 
     light.setup()
 
     team_id, delay = setup_nhl()
     
+    # ESP32 WROVER
+    # adc = machine.ADC(machine.Pin(34))
+    # ESP 8266 Huzzah
+    adc = machine.ADC(0)
+
     first_score_check = True
+
+    # machine.WDT().deinit()
 
     try:
 
@@ -127,6 +140,21 @@ if __name__ == "__main__":
 
             time.sleep(1)
 
+            #gc.collect()
+            #esp.meminfo()
+            #print('MEMINFO: ')
+            #micropython.mem_info()
+            #gc.collect()
+            #print('ALLOCATED: ', gc.mem_alloc())
+            #print('FREE: ', gc.mem_free())
+
+            # print(".", end="")
+
+            # read the delay adjustment every loop
+            # so it can be tweaked during a game
+            # divde by 8 to reduce noise and give a 2 minute max range
+            delay = adc.read() / 8
+            
             # check if in season
             season = nhl.check_season()
             if season:
@@ -139,7 +167,6 @@ if __name__ == "__main__":
                     # light.game_today()
                     # check end of game
                     game_end = nhl.check_game_end(team_id)
-                    led.value(0) 
                     
                     if not game_end:
                         # print("Game now")
@@ -152,6 +179,11 @@ if __name__ == "__main__":
                             new_score = old_score
  
                         print("Score: ", new_score)
+
+                        if new_score == 0:
+                            light.game_now()
+                        else:
+                            light.display_score(new_score)
 
                         # if the ESP8266 has rebooted
                         # prevent it from lighting the goal light
@@ -170,26 +202,30 @@ if __name__ == "__main__":
                             light.activate_goal_light()
                             old_score = new_score
 
+                            # if using WS2128 LEDs you can show the score
+                            # remove for relay version
+                            light.display_score(new_score)
+
                     else:
                         # print("Game Over!")
+                        # turn off LEDs used for testing
+                        light.blank()
                         old_score = 0 # Reset for new game
                         sleep("day")  # sleep till tomorrow
                         new_score = 0
-                        led.value(1)
                 else:
                     # print("No Game Today!")
+                    # light.no_game()
                     sleep("day")  # sleep till tomorrow
                     new_score = 0
                     old_score = 0
-                    led.value(1)
             else:
                 # print("OFF SEASON!")
+                # light.no_game()
                 sleep("season")  # sleep till next season
                 new_score = 0
                 old_score = 0
-                led.value(1)
 
     except KeyboardInterrupt:
         print("\nCtrl-C pressed")
         light.cleanup()
-        led.value(1)
