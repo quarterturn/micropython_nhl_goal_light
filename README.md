@@ -6,6 +6,10 @@ Modifications have been made to allow it to work within the RAM/stack space limi
 
 Also makes use of tayfunulu/WiFiManager to allow the end-user to configure their WAP info.
 
-This is a development version. It uses a dotstar 8 LED stick to indicate game in progress, score, and when a goal happens. I am using a pot on the ADC input to adjust the delay and a 5-position DIP switch to set the team ID. You must supply the pot via a 22K/10K voltage divider off the 3.3V supply, as the ADC input must not go above 1.8V. Non-dev version will target hardware like the Sonoff "smart switch" so a real 120V AC goal light can be used. This will require some mods to come up with a web interface to set delay and team ID.
+Tested on a Seeed Sonoff Basic smart switch. This is an esp8266 with 1 MB flash meant to control AC line-powered devices. See instructions here for flashing the Sonoff with Micropython: https://medium.com/cloud4rpi/getting-micropython-on-a-sonoff-smart-switch-1df6c071720a
 
-Micropython and maybe urequests seem to have some bugs with regards to sometimes getting stuck on network stuff until the hardware watchdog kicks in and reboots it. I am working around this for now in code to prevent false goal inidication.
+I hard-code the team ID and use the Sonoff pushbutton to add a delay if needed. Each button press adds 10 seconds of delay, up to 100 seconds, after which it wraps around to 0 and give the LED a double blink to let you know. Delay is stored in delay.txt in the flash filesystem, so once you set it, it will stick on future power-cycles.
+
+An FTDI-based USB serial adapter barely provides enough current from its built-in 3.3V supply to flash the esp8266. I highly recommend making an outboard 3.3V supply with an LT1117 3.3V TO-92 package reulator, or look for a USB serial adapter with an separate 3.3V regulator.
+
+Please note the code is a work in progress. I see a few hangs and WDT-caused reboots during a game. I don't think it is a memory issue but other than that I'm not sure what it is.
