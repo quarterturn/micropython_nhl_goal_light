@@ -3,7 +3,7 @@ import socket
 import ure
 import time
 
-ap_ssid = "goallight"
+ap_ssid = "goallight2"
 ap_password = "thatshockey"
 ap_authmode = 3  # WPA2
 

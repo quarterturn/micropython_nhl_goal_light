@@ -19,6 +19,8 @@ import urequests as requests
 from lib import nhl
 from lib import light
 
+from machine import WDT
+
 def sleep(sleep_period):
     """ Function to sleep if not in season or no game.
     Inputs sleep period depending if it's off season or no game."""
@@ -28,8 +30,12 @@ def sleep(sleep_period):
 
 
 def setup_nhl():
-
+    # canes
     team_id = 12
+    # st louis
+    # team_id = 19
+    # tbl
+    # team_id = 14
     delay = get_nv_data("delay.txt")
 
     return (team_id, delay)
@@ -121,11 +127,17 @@ if __name__ == "__main__":
     
     first_score_check = True
 
+    wdt = WDT()  # enable it with a timeout of 5s
+    print('Forcing WDT')
+    wdt.feed()
+
     try:
 
         while (True):
 
             time.sleep(1)
+            
+            wdt.feed()
 
             # check if in season
             season = nhl.check_season()
