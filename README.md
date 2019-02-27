@@ -1,4 +1,9 @@
 # micropython_nhl_goal_light
+
+*** THIS PROJECT IS DEPRECATED ***
+*** I am having too many random issues with hangs not being caught by the WDT ***
+*** A new C++ version will be up soon in a separate repo which should be much more reliable ***
+
 NHL Goal Light capable of running on Micropython Networked Hardware
 
 This is a fork of arim215/nhl_goal_light
